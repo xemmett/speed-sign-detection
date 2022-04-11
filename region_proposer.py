@@ -29,9 +29,9 @@ class RegionProposer():
         self.filename = filename
 
         # load img
-        self.img = self.load_image(filename)
+        self.original_img = self.load_image(filename)
         # contrast boost to make detection of red easier
-        self.img = adjust_gamma(self.img, gamma=1.2, gain=2)
+        self.img = adjust_gamma(self.original_img, gamma=1.2, gain=2)
         # self.img[:,:,0] = np.floor(self.img[:,:,0] * 1.05).astype(np.uint8)
         # plot_comparison(self.img, adjusted_gamma_image, 'contrast boost')
 
@@ -46,7 +46,7 @@ class RegionProposer():
         # self.show_image(filtered_img)
 
         # region labelling
-        self.regions = self.region_labelling(filtered_img, self.img, verbose)
+        self.regions = self.region_labelling(filtered_img, self.original_img, verbose)
         
         if(verbose): plt.show()
 
@@ -160,6 +160,8 @@ from os import listdir
 
 for filename in listdir('speed-sign-test-images'):
     if(filename.endswith('.png')):
-        RegionProposer(f"speed-sign-test-images/{filename}")
+        # set verbose to 0 for no graphs or anything
+        RegionProposer(f"speed-sign-test-images/{filename}", verbose=1) 
+        break
 
         
