@@ -1,4 +1,11 @@
-from turtle import window_height
+"""
+Kacper Dudek - 18228798
+Christian Ryan - 18257356
+Charlie Gorey O'Neill - 18222803
+Sean McTiernan - 18224385
+"""
+
+
 from PIL import Image
 
 import matplotlib.pyplot as plt
@@ -36,18 +43,21 @@ class RegionProposer():
 
         # hue, saturation, value handling
         hue, saturation, value = self.rgb_to_hsv(self.img, verbose=verbose)
-        h = self.threshold_channel(hue, threshold=0.8, verbose=verbose, channel_name='hue')
-        s = self.threshold_channel(saturation, threshold=0.2, verbose=verbose, channel_name='saturation')
-        v = self.threshold_channel(value, threshold=0.25, verbose=verbose, channel_name='value')
+
+        h = self.threshold_channel(hue, threshold=0.8, verbose=verbose, operator='>=', channel_name='hue')
+        h = self.threshold_channel(hue, threshold=0.05, verbose=verbose, operator='<=', channel_name='hue')
+
+        s = self.threshold_channel(saturation, threshold=0.25, verbose=verbose, operator='>', channel_name='saturation')
+        v = self.threshold_channel(value, threshold=0.125, verbose=verbose, operator='>', channel_name='value')
 
         mask = h * s * v
         filtered_img = self.filtering(mask, verbose)
         # self.show_image(filtered_img)
 
         # region labelling
-        self.regions = self.region_labelling(filtered_img, self.img, 1)
+        self.regions = self.region_labelling(filtered_img, self.img, verbose)
         
-        if(1): plt.show()
+        if(verbose): plt.show()
 
     def load_image(self, fp: str ='') -> Image:
         image = imread(fp)[:,:,:3] # open image, since is png, 4 channels are proposed, we just take first 3
@@ -83,8 +93,17 @@ class RegionProposer():
 
         return hue, saturation, value
 
-    def threshold_channel(self, hsv_channel, threshold: float = 0.04, verbose: bool = 0, channel_name=None):
-        binary_img = hsv_channel > threshold
+    def threshold_channel(self, hsv_channel, threshold: float = 0.04, verbose: bool = 0, operator: str = '>', channel_name=None):
+        if(operator == '>'):
+            binary_img = hsv_channel > threshold
+        elif(operator == '<'):
+            binary_img = hsv_channel > threshold
+        elif(operator == '>='):
+            binary_img = hsv_channel >= threshold
+        elif(operator == '<='):
+            binary_img = hsv_channel <= threshold
+        else:
+            return print('no compatible operator: >, <, >=, <=')
 
         if(verbose):
             fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(8, 3))
@@ -102,20 +121,14 @@ class RegionProposer():
         return binary_img
 
     def filtering(self, img_mask, verbose: bool = 0):
-        # filtered_img = skimage.filters.butterworth(mask, 0.07, False) # Low pass filter.
+        
         filtered_img = binary_dilation(img_mask) # fill in gaps in images.
         for i in range(5):
             filtered_img = binary_dilation(filtered_img) # fill in gaps in images.
-        
-        # for i in range(2):
-        # filtered_img = binary_erosion(filtered_img)
-        # filtered_img = binary_closing(img_mask)
-
 
         if(verbose):
             plot_comparison(img_mask, filtered_img, 'filtered')
 
-        # filtered_img = skimage.filters.rank.maximum(img, img_mask) # inconclusive
         return filtered_img
 
     def show_image(self, img: Image):
@@ -124,7 +137,7 @@ class RegionProposer():
     def region_labelling(self, img, original_img, verbose: bool = 0):
         regions = []
         s = generate_binary_structure(2,2)
-        labelled_array, num_features = label(img, structure=s)
+        labelled_array, num_features = label(img)
         
         if(verbose):
             print(num_features)
@@ -139,30 +152,29 @@ class RegionProposer():
                 # draw rectangle
                 x, y, width, height = region.bbox
                 # cropped_img = self.crop_image(x, y, width, height)
-                Image.fromarray(self.img[x:width, y:height]).save(f'roi/roi_{self.filename.split("/")[-1].split(".")[0]}_{i}.png')
                 # test for aspect ratio
                 # print(i, width / height)
                 # print(i, height)
                 # print(i, width)
-                # if((height / width) < 3 and (height / width) > 0.6):
+                # if(((height / width) < 2 and (width / height) > 0.6) or ((width / height) < 2 and (height / width) > 0.6)):
+                region = self.crop_image(self.img, x, y, width, height)
                 regions.append(region)
 
                 if(verbose):
                     rect = Rectangle((y, x), height - y, width - x, fill=0, edgecolor='red', linewidth=2)
                     ax.add_patch(rect)
-                    plt.text(y, x, f"[{str(i)}] {height / width}", color="orange", fontdict={"fontsize":20})
+                    plt.text(y, x, f"[{i}] {height / width}", color="orange", fontdict={"fontsize":20})
 
         return regions
     
     def crop_image(self, img, x, y, width, height):
-        # return 
-        pass
+        return img[x:width, y:height]
 
-from os import listdir
+# from os import listdir
 
-for filename in listdir('speed-sign-test-images'):
-    if(filename.endswith('.png')):
-        # set verbose to 0 for no graphs or anything
-        RegionProposer(f"speed-sign-test-images/{filename}", verbose=0)
+# for filename in listdir('speed-sign-test-images'):
+#     if(filename.endswith('.png')):
+#         # set verbose to 0 for no graphs or anything
+#         RegionProposer(f"speed-sign-test-images/{filename}", verbose=0).regions
 
         
